@@ -27,6 +27,18 @@ function register_advanced_product_card($widgets_manager){
             $this->add_control('show_divider',['label'=>'Show Divider','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'yes']);
             $this->add_control('caption',['label'=>'Caption','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'Short description']);
             $this->add_control('price',['label'=>'Price','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'$49']);
+            $this->add_control('card_link',[
+                'label'=>'Card Link',
+                'type'=>\Elementor\Controls_Manager::URL,
+                'placeholder'=>'https://example.com',
+                'show_external'=>false
+            ]);
+            $this->add_control('card_link_new_tab',[
+                'label'=>'Open In New Tab',
+                'type'=>\Elementor\Controls_Manager::SWITCHER,
+                'default'=>'yes',
+                'condition'=>['card_link[url]!'=>'']
+            ]);
             $this->add_control('layout',['label'=>'Caption / Price Layout','type'=>\Elementor\Controls_Manager::CHOOSE,
                 'options'=>[
                     'row'=>['title'=>'Left - Right','icon'=>'eicon-h-align-stretch'],
@@ -92,14 +104,34 @@ function register_advanced_product_card($widgets_manager){
             // Custom clip-path
             $this->add_control('img_custom_clip',['label'=>'Custom Clip-Path','type'=>\Elementor\Controls_Manager::TEXT,'placeholder'=>'polygon(...)','condition'=>['img_geom_shape'=>'custom']]);
 
-            // Parallelogram lean slider
+            // Parallelogram direction + lean amount
             $this->add_control(
-                'para_offset',
+                'para_direction',
                 [
-                    'label' => 'Parallelogram Lean / Direction',
+                    'label' => 'Parallelogram Direction',
+                    'type' => \Elementor\Controls_Manager::CHOOSE,
+                    'options' => [
+                        'right-top' => [
+                            'title' => 'Right Top (+)',
+                            'icon' => 'eicon-arrow-right'
+                        ],
+                        'left-top' => [
+                            'title' => 'Left Top (-)',
+                            'icon' => 'eicon-arrow-left'
+                        ],
+                    ],
+                    'default' => 'right-top',
+                    'toggle' => false,
+                    'condition' => ['img_geom_shape' => 'parallelogram']
+                ]
+            );
+            $this->add_control(
+                'para_lean',
+                [
+                    'label' => 'Parallelogram Lean',
                     'type' => \Elementor\Controls_Manager::SLIDER,
                     'size_units'=>['%'],
-                    'range'=>['%'=>['min'=>-50,'max'=>50]],
+                    'range'=>['%'=>['min'=>0,'max'=>50]],
                     'default'=>['size'=>20],
                     'condition'=>['img_geom_shape'=>'parallelogram']
                 ]
@@ -159,9 +191,23 @@ function register_advanced_product_card($widgets_manager){
                 case 'pentagon': $clip='polygon(50% 0%,100% 38%,82% 100%,18% 100%,0% 38%)'; break;
                 case 'star': $clip='polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)'; break;
                 case 'parallelogram':
-                    $x = intval($s['para_offset']['size']);
-                    if($x>=0){ $clip="polygon({$x}% 0%,100% 0%,".(100-$x)."% 100%,0% 100%)"; }
-                    else{ $absx=abs($x); $clip="polygon(0% 0%,".(100-$absx)."% 0%,100% 100%,{$absx}% 100%)"; }
+                    $x = isset($s['para_lean']['size']) ? intval($s['para_lean']['size']) : 20;
+                    // Backward compatibility for older saved data that still stores signed para_offset.
+                    if (isset($s['para_offset']['size'])) {
+                        $legacy = intval($s['para_offset']['size']);
+                        if ($legacy < 0) {
+                            $s['para_direction'] = 'left-top';
+                            $x = abs($legacy);
+                        } else {
+                            $s['para_direction'] = 'right-top';
+                            $x = $legacy;
+                        }
+                    }
+                    if (($s['para_direction'] ?? 'right-top') === 'left-top') {
+                        $clip="polygon(0% 0%,".(100-$x)."% 0%,100% 100%,{$x}% 100%)";
+                    } else {
+                        $clip="polygon({$x}% 0%,100% 0%,".(100-$x)."% 100%,0% 100%)";
+                    }
                     break;
                 case 'custom': $clip=$s['img_custom_clip']; break;
                 default: $clip='none';
@@ -173,7 +219,12 @@ function register_advanced_product_card($widgets_manager){
                 $s['img_align'],
                 $clip
             );
+            $card_link = isset($s['card_link']['url']) ? trim($s['card_link']['url']) : '';
+            $open_in_new_tab = (($s['card_link_new_tab'] ?? '') === 'yes');
             ?>
+            <?php if ($card_link !== '') : ?>
+                <a class="pc-card-link" href="<?php echo esc_url($card_link); ?>"<?php echo $open_in_new_tab ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
+            <?php endif; ?>
             <div class="pc-card">
 
                 <div class="pc-image-box">
@@ -194,8 +245,12 @@ function register_advanced_product_card($widgets_manager){
                     <div class="pc-price"><?php echo $s['price']; ?></div>
                 </div>
             </div>
+            <?php if ($card_link !== '') : ?>
+                </a>
+            <?php endif; ?>
 
             <style>
+                .pc-card-link{display:block; text-decoration:none; color:inherit;}
                 .pc-card{position:relative; transition:.3s;}
                 .pc-image-box{position:relative; overflow:visible;}
                 .pc-image{position:relative; height:100%; width:100%;}
@@ -213,7 +268,118 @@ function register_advanced_product_card($widgets_manager){
         }
     }
 
+    class Double_Heading_Widget extends \Elementor\Widget_Base {
+
+        public function get_name(){ return 'double_heading_widget'; }
+        public function get_title(){ return 'Double Heading'; }
+        public function get_icon(){ return 'eicon-t-letter'; }
+        public function get_categories(){ return ['general']; }
+
+        protected function register_controls(){
+            $this->start_controls_section('content_section',[
+                'label'=>'Content',
+                'tab'=>\Elementor\Controls_Manager::TAB_CONTENT
+            ]);
+
+            $this->add_control('heading_main',[
+                'label'=>'Heading Part 1',
+                'type'=>\Elementor\Controls_Manager::TEXT,
+                'default'=>'Heading'
+            ]);
+            $this->add_control('heading_span',[
+                'label'=>'Heading Part 2 (Span)',
+                'type'=>\Elementor\Controls_Manager::TEXT,
+                'default'=>'Part 2'
+            ]);
+            $this->add_control('html_tag',[
+                'label'=>'HTML Tag',
+                'type'=>\Elementor\Controls_Manager::SELECT,
+                'options'=>[
+                    'h1'=>'H1','h2'=>'H2','h3'=>'H3','h4'=>'H4','h5'=>'H5','h6'=>'H6',
+                    'div'=>'div','span'=>'span','p'=>'p'
+                ],
+                'default'=>'h2'
+            ]);
+            $this->add_control('span_direction',[
+                'label'=>'Span Direction',
+                'type'=>\Elementor\Controls_Manager::SELECT,
+                'options'=>[
+                    'inline'=>'Same Line',
+                    'down'=>'Down (Next Line)'
+                ],
+                'default'=>'inline'
+            ]);
+            $this->add_responsive_control('align',[
+                'label'=>'Alignment',
+                'type'=>\Elementor\Controls_Manager::CHOOSE,
+                'options'=>[
+                    'left'=>['title'=>'Left','icon'=>'eicon-text-align-left'],
+                    'center'=>['title'=>'Center','icon'=>'eicon-text-align-center'],
+                    'right'=>['title'=>'Right','icon'=>'eicon-text-align-right'],
+                    'justify'=>['title'=>'Justified','icon'=>'eicon-text-align-justify'],
+                ],
+                'default'=>'left',
+                'selectors'=>['{{WRAPPER}} .dh-heading-wrap'=>'text-align:{{VALUE}};']
+            ]);
+            $this->end_controls_section();
+
+            $this->start_controls_section('heading_style',[
+                'label'=>'Heading',
+                'tab'=>\Elementor\Controls_Manager::TAB_STYLE
+            ]);
+            $this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
+                'name'=>'heading_typography',
+                'selector'=>'{{WRAPPER}} .dh-heading'
+            ]);
+            $this->add_control('heading_color',[
+                'label'=>'Text Color',
+                'type'=>\Elementor\Controls_Manager::COLOR,
+                'selectors'=>['{{WRAPPER}} .dh-heading'=>'color:{{VALUE}};']
+            ]);
+            $this->end_controls_section();
+
+            $this->start_controls_section('highlight_style',[
+                'label'=>'Highlight (Span)',
+                'tab'=>\Elementor\Controls_Manager::TAB_STYLE
+            ]);
+            $this->add_control('highlight_color',[
+                'label'=>'Text Color',
+                'type'=>\Elementor\Controls_Manager::COLOR,
+                'selectors'=>['{{WRAPPER}} .dh-heading .dh-highlight'=>'color:{{VALUE}};']
+            ]);
+            $this->add_group_control(\Elementor\Group_Control_Typography::get_type(),[
+                'name'=>'highlight_typography',
+                'selector'=>'{{WRAPPER}} .dh-heading .dh-highlight'
+            ]);
+            $this->add_responsive_control('highlight_margin',[
+                'label'=>'Span Margin',
+                'type'=>\Elementor\Controls_Manager::DIMENSIONS,
+                'selectors'=>[
+                    '{{WRAPPER}} .dh-heading .dh-highlight'=>'margin:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};'
+                ]
+            ]);
+            $this->end_controls_section();
+        }
+
+        protected function render(){
+            $s = $this->get_settings_for_display();
+            $tag = in_array($s['html_tag'], ['h1','h2','h3','h4','h5','h6','div','span','p'], true) ? $s['html_tag'] : 'h2';
+            $heading_main = isset($s['heading_main']) ? $s['heading_main'] : '';
+            $heading_span = isset($s['heading_span']) ? $s['heading_span'] : '';
+            $span_style = (($s['span_direction'] ?? 'inline') === 'down') ? 'display:block;' : 'display:inline;';
+            ?>
+            <div class="dh-heading-wrap">
+                <<?php echo esc_attr($tag); ?> class="dh-heading">
+                    <?php echo esc_html($heading_main); ?>
+                    <span class="dh-highlight" style="<?php echo esc_attr($span_style); ?>"><?php echo esc_html($heading_span); ?></span>
+                </<?php echo esc_attr($tag); ?>>
+            </div>
+            <?php
+        }
+    }
+
     $widgets_manager->register(new Advanced_Product_Card());
+    $widgets_manager->register(new Double_Heading_Widget());
 }
 
 add_action('elementor/widgets/register','register_advanced_product_card');
