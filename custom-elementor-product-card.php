@@ -160,8 +160,32 @@ function register_advanced_product_card($widgets_manager){
 
             // DIVIDER STYLE
             $this->start_controls_section('divider_style',['label'=>'Divider','tab'=>\Elementor\Controls_Manager::TAB_STYLE]);
-            $this->add_control('divider_style',['label'=>'Style','type'=>\Elementor\Controls_Manager::SELECT,'options'=>['solid'=>'Solid','dashed'=>'Dashed','dotted'=>'Dotted','double'=>'Double'],'default'=>'solid','selectors'=>['{{WRAPPER}} .pc-divider'=>'border-top-style:{{VALUE}}']]);
+            $this->add_control('divider_style',[
+                'label'=>'Style',
+                'type'=>\Elementor\Controls_Manager::SELECT,
+                'options'=>[
+                    'none'=>'None',
+                    'solid'=>'Solid',
+                    'dashed'=>'Dashed',
+                    'dotted'=>'Dotted',
+                    'double'=>'Double',
+                    'groove'=>'Groove',
+                    'ridge'=>'Ridge',
+                    'inset'=>'Inset',
+                    'outset'=>'Outset',
+                ],
+                'default'=>'solid',
+                'selectors'=>['{{WRAPPER}} .pc-divider'=>'border-top-style:{{VALUE}}']
+            ]);
             $this->add_control('divider_color',['label'=>'Color','type'=>\Elementor\Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .pc-divider'=>'border-color:{{VALUE}}']]);
+            $this->add_responsive_control('divider_thickness',[
+                'label'=>'Thickness',
+                'type'=>\Elementor\Controls_Manager::SLIDER,
+                'size_units'=>['px'],
+                'range'=>['px'=>['min'=>1,'max'=>20]],
+                'default'=>['size'=>2],
+                'selectors'=>['{{WRAPPER}} .pc-divider'=>'border-top-width:{{SIZE}}px;']
+            ]);
             $this->add_responsive_control('divider_width',['label'=>'Width','type'=>\Elementor\Controls_Manager::SLIDER,'default'=>['size'=>100],'selectors'=>['{{WRAPPER}} .pc-divider'=>'width:{{SIZE}}%']]);
             $this->add_control('divider_align',['label'=>'Alignment','type'=>\Elementor\Controls_Manager::CHOOSE,'options'=>['left'=>['title'=>'Left','icon'=>'eicon-text-align-left'],'center'=>['title'=>'Center','icon'=>'eicon-text-align-center'],'right'=>['title'=>'Right','icon'=>'eicon-text-align-right']],'default'=>'center','selectors'=>['{{WRAPPER}} .pc-divider'=>'margin-left:auto;margin-right:auto']]);
             $this->end_controls_section();
