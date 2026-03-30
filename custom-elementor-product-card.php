@@ -27,6 +27,11 @@ function register_advanced_product_card($widgets_manager){
             $this->add_control('show_divider',['label'=>'Show Divider','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'yes']);
             $this->add_control('caption',['label'=>'Caption','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'Short description']);
             $this->add_control('price',['label'=>'Price','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'$49']);
+            $this->add_control('bottom_caption',[
+                'label'=>'Bottom Caption (Optional)',
+                'type'=>\Elementor\Controls_Manager::TEXTAREA,
+                'default'=>''
+            ]);
             $this->add_control('card_link',[
                 'label'=>'Card Link',
                 'type'=>\Elementor\Controls_Manager::URL,
@@ -45,6 +50,12 @@ function register_advanced_product_card($widgets_manager){
                     'column'=>['title'=>'Stack','icon'=>'eicon-v-align-stretch']
                 ],
                 'default'=>'row'
+            ]);
+            $this->add_control('stack_caption_price',[
+                'label'=>'Stack Caption / Price (Top-Bottom)',
+                'type'=>\Elementor\Controls_Manager::SWITCHER,
+                'default'=>'no',
+                'return_value'=>'yes'
             ]);
             $this->end_controls_section();
 
@@ -199,6 +210,28 @@ function register_advanced_product_card($widgets_manager){
             $this->add_control('price_color',['label'=>'Price Color','type'=>\Elementor\Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .pc-price'=>'color:{{VALUE}};']]);
             $this->add_responsive_control('price_margin',['label'=>'Margin','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-price'=>'margin:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
             $this->end_controls_section();
+
+            // BOTTOM CAPTION STYLE
+            $this->start_controls_section('bottom_caption_style',['label'=>'Bottom Caption','tab'=>\Elementor\Controls_Manager::TAB_STYLE]);
+            $this->add_group_control(\Elementor\Group_Control_Typography::get_type(),['name'=>'bottom_caption_typo','selector'=>'{{WRAPPER}} .pc-bottom-caption']);
+            $this->add_control('bottom_caption_color',['label'=>'Text Color','type'=>\Elementor\Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_caption_margin',['label'=>'Margin','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'margin:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
+            $this->add_responsive_control('bottom_caption_padding',['label'=>'Padding','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'padding:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
+
+            $this->add_control('bottom_before_heading',['label'=>'Before Border','type'=>\Elementor\Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control('bottom_before_enable',['label'=>'Show Before Border','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'no']);
+            $this->add_control('bottom_before_style',['label'=>'Before Border Style','type'=>\Elementor\Controls_Manager::SELECT,'options'=>['solid'=>'Solid','dashed'=>'Dashed','dotted'=>'Dotted','double'=>'Double'],'default'=>'solid','condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-style:{{VALUE}};']]);
+            $this->add_control('bottom_before_color',['label'=>'Before Border Color','type'=>\Elementor\Controls_Manager::COLOR,'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_before_width',['label'=>'Before Border Width (%)','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['%'],'range'=>['%'=>['min'=>10,'max'=>100]],'default'=>['size'=>100], 'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'width:{{SIZE}}%;']]);
+            $this->add_responsive_control('bottom_before_thickness',['label'=>'Before Border Thickness','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['px'],'range'=>['px'=>['min'=>1,'max'=>12]],'default'=>['size'=>1], 'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-width:{{SIZE}}px;']]);
+
+            $this->add_control('bottom_after_heading',['label'=>'After Border','type'=>\Elementor\Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control('bottom_after_enable',['label'=>'Show After Border','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'no']);
+            $this->add_control('bottom_after_style',['label'=>'After Border Style','type'=>\Elementor\Controls_Manager::SELECT,'options'=>['solid'=>'Solid','dashed'=>'Dashed','dotted'=>'Dotted','double'=>'Double'],'default'=>'solid','condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-style:{{VALUE}};']]);
+            $this->add_control('bottom_after_color',['label'=>'After Border Color','type'=>\Elementor\Controls_Manager::COLOR,'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_after_width',['label'=>'After Border Width (%)','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['%'],'range'=>['%'=>['min'=>10,'max'=>100]],'default'=>['size'=>100], 'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'width:{{SIZE}}%;']]);
+            $this->add_responsive_control('bottom_after_thickness',['label'=>'After Border Thickness','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['px'],'range'=>['px'=>['min'=>1,'max'=>12]],'default'=>['size'=>1], 'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-width:{{SIZE}}px;']]);
+            $this->end_controls_section();
         }
 
         protected function render(){
@@ -243,6 +276,7 @@ function register_advanced_product_card($widgets_manager){
                 $s['img_align'],
                 $clip
             );
+            $layout_class = (($s['stack_caption_price'] ?? '') === 'yes') ? 'column' : ($s['layout'] ?? 'row');
             $card_link = isset($s['card_link']['url']) ? trim($s['card_link']['url']) : '';
             $open_in_new_tab = (($s['card_link_new_tab'] ?? '') === 'yes');
             ?>
@@ -264,10 +298,13 @@ function register_advanced_product_card($widgets_manager){
 
                 <?php if($s['show_divider']=='yes'): ?><hr class="pc-divider"><?php endif; ?>
 
-                <div class="pc-row <?php echo esc_attr($s['layout']); ?>">
+                <div class="pc-row <?php echo esc_attr($layout_class); ?>">
                     <div class="pc-caption"><?php echo $s['caption']; ?></div>
                     <div class="pc-price"><?php echo $s['price']; ?></div>
                 </div>
+                <?php if (!empty($s['bottom_caption'])) : ?>
+                    <div class="pc-bottom-caption"><?php echo $s['bottom_caption']; ?></div>
+                <?php endif; ?>
             </div>
             <?php if ($card_link !== '') : ?>
                 </a>
@@ -287,6 +324,16 @@ function register_advanced_product_card($widgets_manager){
                 .pc-divider{border-top-width:2px; border-top-style:solid; border-bottom:0;}
                 .pc-row.row{flex-direction:row; justify-content:space-between; display:flex;}
                 .pc-row.column{flex-direction:column; display:flex;}
+                .pc-bottom-caption{position:relative;}
+                .pc-bottom-caption::before,
+                .pc-bottom-caption::after{
+                    content:'';
+                    display:block;
+                    border-top-style:solid;
+                    border-top-width:1px;
+                    border-top-color:transparent;
+                    width:100%;
+                }
             </style>
             <?php
         }
