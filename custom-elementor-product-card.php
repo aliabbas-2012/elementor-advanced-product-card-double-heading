@@ -276,6 +276,14 @@ function register_advanced_product_card($widgets_manager){
                 $s['img_align'],
                 $clip
             );
+            $image_id = !empty($s['image']['id']) ? intval($s['image']['id']) : 0;
+            $image_alt = '';
+            if ($image_id) {
+                $image_alt = trim((string) get_post_meta($image_id, '_wp_attachment_image_alt', true));
+            }
+            if ($image_alt === '') {
+                $image_alt = trim((string) ($s['title'] ?? ''));
+            }
             $layout_class = (($s['stack_caption_price'] ?? '') === 'yes') ? 'column' : ($s['layout'] ?? 'row');
             $card_link = isset($s['card_link']['url']) ? trim($s['card_link']['url']) : '';
             $open_in_new_tab = (($s['card_link_new_tab'] ?? '') === 'yes');
@@ -287,7 +295,7 @@ function register_advanced_product_card($widgets_manager){
 
                 <div class="pc-image-box">
                     <div class="pc-image">
-                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="" style="<?php echo esc_attr($img_style); ?>">
+                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="<?php echo esc_attr($image_alt); ?>" loading="lazy" decoding="async" style="<?php echo esc_attr($img_style); ?>">
                     </div>
                     <?php if ($s['banner_text']) : ?>
                         <div class="pc-banner <?php echo esc_attr($s['banner_position']); ?>"><?php echo $s['banner_text']; ?></div>

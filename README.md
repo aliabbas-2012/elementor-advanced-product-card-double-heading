@@ -11,8 +11,12 @@ This plugin is useful when you need a highly customizable product-style card and
 
 ### 1) Product Card Advanced
 
-- Image, title, caption, price, divider, and corner banner controls
+- Image, title, caption, price, divider, optional bottom caption, and corner banner controls
 - Card-wide link (`href`) with optional open in new tab
+- Image accessibility/performance:
+  - Auto `alt` from Media Library alt text
+  - Fallback `alt` from card title when media alt is empty
+  - Native lazy loading (`loading="lazy"`) with `decoding="async"`
 - Card style controls (background, hover, border, padding)
 - Image box style controls (background, border, margin, padding, height)
 - Image fit/alignment controls
@@ -24,7 +28,15 @@ This plugin is useful when you need a highly customizable product-style card and
   - Custom clip-path input
 - Banner position and full style controls
 - Typography/color/margin controls for title, caption, and price
-- Divider style controls
+- Caption/Price layout controls:
+  - Default left-right
+  - Optional stack top-bottom with a switch
+- Divider controls:
+  - Styles: None, Solid, Dashed, Dotted, Double, Groove, Ridge, Inset, Outset
+  - Color, thickness, width, alignment
+- Bottom caption controls:
+  - Full typography, color, margin, padding
+  - Optional `::before` and `::after` border controls (style, color, width, thickness)
 
 ### 2) Double Heading
 
@@ -60,8 +72,11 @@ If span typography is not set, it naturally inherits from the parent heading.
 
 1. Drag the widget into your page.
 2. Fill content fields (image, title, caption, price, etc.).
-3. Optional: set **Card Link** and enable/disable **Open In New Tab**.
-4. Customize card/image/banner/title/divider/text styles in the **Style** tab.
+3. Image output automatically uses media alt text and lazy loading.
+4. Optional: set **Card Link** and enable/disable **Open In New Tab**.
+5. Optional: add **Bottom Caption (Optional)**.
+6. Optional: enable **Stack Caption / Price (Top-Bottom)** if you want vertical layout.
+7. Customize card/image/banner/title/divider/text/bottom-caption styles in the **Style** tab.
 
 ### Double Heading
 
@@ -77,11 +92,13 @@ If span typography is not set, it naturally inherits from the parent heading.
 
 - Built for Elementor widget system (`\Elementor\Widget_Base`).
 - Includes output escaping for URL and attribute contexts.
+- Product card image renders with `alt` fallback logic and lazy loading enabled.
+- Existing saved designs are preserved by defaults (new options are opt-in).
 - Tested with `php -l` syntax validation.
 
 ## Suggested GitHub Description
 
-`Custom Elementor widgets for WordPress: advanced product card with shape clipping + clickable card link, and a double heading widget with independent span styling.`
+`Custom Elementor widgets for WordPress: advanced product card (shape clipping, clickable card link, rich divider controls, optional bottom caption) and double heading with independent span styling.`
 
 ## License
 
