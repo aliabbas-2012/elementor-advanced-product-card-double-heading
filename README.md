@@ -16,7 +16,10 @@ This plugin is useful when you need a highly customizable product-style card and
 - Image accessibility/performance:
   - Auto `alt` from Media Library alt text
   - Fallback `alt` from card title when media alt is empty
-  - Native lazy loading (`loading="lazy"`) with `decoding="async"`
+  - **Image Resolution** (Content tab): dropdown of WordPress registered sizes (e.g. Large — 1024 × 1024) plus **Full — Original**; shown after you pick an image from the library. Drives `src` and `srcset` for that size.
+  - **Media library images:** output uses `wp_get_attachment_image()` so markup matches core behavior: `srcset`, `sizes`, `width` / `height`, and `wp-image-{id}` classes (plus your card styles for fit and clip-path).
+  - **URL-only images** (no attachment ID): single `<img src="…">` without `srcset`/`sizes` (same as before).
+  - Native lazy loading (`loading="lazy"`), `decoding="async"`, and `fetchpriority="high"` (browsers may reconcile lazy + priority hints differently).
 - Card style controls (background, hover, border, padding)
 - Image box style controls (background, border, margin, padding, height)
 - Image fit/alignment controls
@@ -72,11 +75,12 @@ If span typography is not set, it naturally inherits from the parent heading.
 
 1. Drag the widget into your page.
 2. Fill content fields (image, title, caption, price, etc.).
-3. Image output automatically uses media alt text and lazy loading.
-4. Optional: set **Card Link** and enable/disable **Open In New Tab**.
-5. Optional: add **Bottom Caption (Optional)**.
-6. Optional: enable **Stack Caption / Price (Top-Bottom)** if you want vertical layout.
-7. Customize card/image/banner/title/divider/text/bottom-caption styles in the **Style** tab.
+3. After choosing an image from the **Media Library**, set **Image Resolution** if you want a size other than the default (Large).
+4. Image output uses media alt text (with title fallback), responsive `srcset`/`sizes` when an attachment ID exists, and lazy loading.
+5. Optional: set **Card Link** and enable/disable **Open In New Tab**.
+6. Optional: add **Bottom Caption (Optional)**.
+7. Optional: enable **Stack Caption / Price (Top-Bottom)** if you want vertical layout.
+8. Customize card/image/banner/title/divider/text/bottom-caption styles in the **Style** tab.
 
 ### Double Heading
 
@@ -92,13 +96,13 @@ If span typography is not set, it naturally inherits from the parent heading.
 
 - Built for Elementor widget system (`\Elementor\Widget_Base`).
 - Includes output escaping for URL and attribute contexts.
-- Product card image renders with `alt` fallback logic and lazy loading enabled.
-- Existing saved designs are preserved by defaults (new options are opt-in).
+- Product card image: `alt` fallback, **Image Resolution** control, `wp_get_attachment_image()` for library images (responsive sources), lazy loading, and `fetchpriority="high"` where output is generated.
+- Older layouts without **Image Resolution** saved still default to the **Large** size.
 - Tested with `php -l` syntax validation.
 
 ## Suggested GitHub Description
 
-`Custom Elementor widgets for WordPress: advanced product card (shape clipping, clickable card link, rich divider controls, optional bottom caption) and double heading with independent span styling.`
+`Custom Elementor widgets for WordPress: advanced product card (responsive images, image size picker, shape clipping, clickable card link, rich divider controls, optional bottom caption) and double heading with independent span styling.`
 
 ## License
 

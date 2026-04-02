@@ -5,6 +5,62 @@
 
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Build Image resolution dropdown labels (WordPress registered sizes + Full).
+ *
+ * @return array<string, string>
+ */
+function advanced_product_card_get_image_size_options() {
+    $subsizes = function_exists('wp_get_registered_image_subsizes') ? wp_get_registered_image_subsizes() : [];
+    $intermediate = function_exists('get_intermediate_image_sizes') ? get_intermediate_image_sizes() : [];
+    $labels = [];
+    $preferred = ['thumbnail', 'medium', 'medium_large', 'large'];
+    foreach ($preferred as $slug) {
+        if (in_array($slug, $intermediate, true)) {
+            $labels[ $slug ] = advanced_product_card_format_image_size_label($slug, $subsizes);
+        }
+    }
+    foreach ($intermediate as $slug) {
+        if (!isset($labels[ $slug ])) {
+            $labels[ $slug ] = advanced_product_card_format_image_size_label($slug, $subsizes);
+        }
+    }
+    $labels['full'] = 'Full — Original';
+    return $labels;
+}
+
+/**
+ * @param array<string, array{width:int,height:int}> $subsizes
+ */
+function advanced_product_card_format_image_size_label($slug, $subsizes) {
+    $label = ucwords(str_replace('_', ' ', $slug));
+    if (isset($subsizes[ $slug ])) {
+        $w = (int) $subsizes[ $slug ]['width'];
+        $h = (int) $subsizes[ $slug ]['height'];
+        if ($w || $h) {
+            $label .= sprintf(' — %d × %d', $w, $h);
+        }
+    }
+    return $label;
+}
+
+/**
+ * @param mixed $size Setting from Elementor select.
+ */
+function advanced_product_card_resolve_image_size($size) {
+    $allowed = array_merge(get_intermediate_image_sizes(), ['full']);
+    if (is_string($size) && in_array($size, $allowed, true)) {
+        return $size;
+    }
+    if (in_array('large', $allowed, true)) {
+        return 'large';
+    }
+    if (in_array('full', $allowed, true)) {
+        return 'full';
+    }
+    return ! empty($allowed[0]) ? $allowed[0] : 'full';
+}
+
 function register_advanced_product_card($widgets_manager){
 
     class Advanced_Product_Card extends \Elementor\Widget_Base {
@@ -22,6 +78,16 @@ function register_advanced_product_card($widgets_manager){
             ]);
 
             $this->add_control('image',['label'=>'Image','type'=>\Elementor\Controls_Manager::MEDIA]);
+            $this->add_control('image_size',[
+                'label' => 'Image Resolution',
+                'type' => \Elementor\Controls_Manager::SELECT,
+                'options' => advanced_product_card_get_image_size_options(),
+                'default' => 'large',
+                'description' => 'Which WordPress image size to use for src and srcset (media library images only).',
+                'condition' => [
+                    'image[id]!' => '',
+                ],
+            ]);
             $this->add_control('banner_text',['label'=>'Corner Banner Text','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'SALE']);
             $this->add_control('title',['label'=>'Title','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'Product Title']);
             $this->add_control('show_divider',['label'=>'Show Divider','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'yes']);
@@ -287,6 +353,26 @@ function register_advanced_product_card($widgets_manager){
             $layout_class = (($s['stack_caption_price'] ?? '') === 'yes') ? 'column' : ($s['layout'] ?? 'row');
             $card_link = isset($s['card_link']['url']) ? trim($s['card_link']['url']) : '';
             $open_in_new_tab = (($s['card_link_new_tab'] ?? '') === 'yes');
+
+            $image_size = advanced_product_card_resolve_image_size($s['image_size'] ?? 'large');
+
+            // Responsive srcset/sizes via core when we have a media library attachment ID.
+            $responsive_img_html = '';
+            if ($image_id && wp_attachment_is_image($image_id)) {
+                $responsive_img_html = wp_get_attachment_image(
+                    $image_id,
+                    $image_size,
+                    false,
+                    [
+                        'style'         => $img_style,
+                        'loading'       => 'lazy',
+                        'fetchpriority' => 'high',
+                        'decoding'      => 'async',
+                        'class'         => 'pc-card-img',
+                        'alt'           => $image_alt,
+                    ]
+                );
+            }
             ?>
             <?php if ($card_link !== '') : ?>
                 <a class="pc-card-link" href="<?php echo esc_url($card_link); ?>"<?php echo $open_in_new_tab ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
@@ -295,7 +381,16 @@ function register_advanced_product_card($widgets_manager){
 
                 <div class="pc-image-box">
                     <div class="pc-image">
-                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="<?php echo esc_attr($image_alt); ?>" loading="lazy" decoding="async" style="<?php echo esc_attr($img_style); ?>">
+                        <?php
+                        if ($responsive_img_html !== '') {
+                            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() returns escaped HTML.
+                            echo $responsive_img_html;
+                        } elseif (!empty($s['image']['url'])) {
+                            ?>
+                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="<?php echo esc_attr($image_alt); ?>" loading="lazy" fetchpriority="high" decoding="async" style="<?php echo esc_attr($img_style); ?>">
+                            <?php
+                        }
+                        ?>
                     </div>
                     <?php if ($s['banner_text']) : ?>
                         <div class="pc-banner <?php echo esc_attr($s['banner_position']); ?>"><?php echo $s['banner_text']; ?></div>
