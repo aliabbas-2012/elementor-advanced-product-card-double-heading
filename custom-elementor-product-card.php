@@ -5,6 +5,62 @@
 
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Build Image resolution dropdown labels (WordPress registered sizes + Full).
+ *
+ * @return array<string, string>
+ */
+function advanced_product_card_get_image_size_options() {
+    $subsizes = function_exists('wp_get_registered_image_subsizes') ? wp_get_registered_image_subsizes() : [];
+    $intermediate = function_exists('get_intermediate_image_sizes') ? get_intermediate_image_sizes() : [];
+    $labels = [];
+    $preferred = ['thumbnail', 'medium', 'medium_large', 'large'];
+    foreach ($preferred as $slug) {
+        if (in_array($slug, $intermediate, true)) {
+            $labels[ $slug ] = advanced_product_card_format_image_size_label($slug, $subsizes);
+        }
+    }
+    foreach ($intermediate as $slug) {
+        if (!isset($labels[ $slug ])) {
+            $labels[ $slug ] = advanced_product_card_format_image_size_label($slug, $subsizes);
+        }
+    }
+    $labels['full'] = 'Full — Original';
+    return $labels;
+}
+
+/**
+ * @param array<string, array{width:int,height:int}> $subsizes
+ */
+function advanced_product_card_format_image_size_label($slug, $subsizes) {
+    $label = ucwords(str_replace('_', ' ', $slug));
+    if (isset($subsizes[ $slug ])) {
+        $w = (int) $subsizes[ $slug ]['width'];
+        $h = (int) $subsizes[ $slug ]['height'];
+        if ($w || $h) {
+            $label .= sprintf(' — %d × %d', $w, $h);
+        }
+    }
+    return $label;
+}
+
+/**
+ * @param mixed $size Setting from Elementor select.
+ */
+function advanced_product_card_resolve_image_size($size) {
+    $allowed = array_merge(get_intermediate_image_sizes(), ['full']);
+    if (is_string($size) && in_array($size, $allowed, true)) {
+        return $size;
+    }
+    if (in_array('large', $allowed, true)) {
+        return 'large';
+    }
+    if (in_array('full', $allowed, true)) {
+        return 'full';
+    }
+    return ! empty($allowed[0]) ? $allowed[0] : 'full';
+}
+
 function register_advanced_product_card($widgets_manager){
 
     class Advanced_Product_Card extends \Elementor\Widget_Base {
@@ -22,11 +78,26 @@ function register_advanced_product_card($widgets_manager){
             ]);
 
             $this->add_control('image',['label'=>'Image','type'=>\Elementor\Controls_Manager::MEDIA]);
+            $this->add_control('image_size',[
+                'label' => 'Image Resolution',
+                'type' => \Elementor\Controls_Manager::SELECT,
+                'options' => advanced_product_card_get_image_size_options(),
+                'default' => 'large',
+                'description' => 'Which WordPress image size to use for src and srcset (media library images only).',
+                'condition' => [
+                    'image[id]!' => '',
+                ],
+            ]);
             $this->add_control('banner_text',['label'=>'Corner Banner Text','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'SALE']);
             $this->add_control('title',['label'=>'Title','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'Product Title']);
             $this->add_control('show_divider',['label'=>'Show Divider','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'yes']);
             $this->add_control('caption',['label'=>'Caption','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'Short description']);
             $this->add_control('price',['label'=>'Price','type'=>\Elementor\Controls_Manager::TEXT,'default'=>'$49']);
+            $this->add_control('bottom_caption',[
+                'label'=>'Bottom Caption (Optional)',
+                'type'=>\Elementor\Controls_Manager::TEXTAREA,
+                'default'=>''
+            ]);
             $this->add_control('card_link',[
                 'label'=>'Card Link',
                 'type'=>\Elementor\Controls_Manager::URL,
@@ -45,6 +116,12 @@ function register_advanced_product_card($widgets_manager){
                     'column'=>['title'=>'Stack','icon'=>'eicon-v-align-stretch']
                 ],
                 'default'=>'row'
+            ]);
+            $this->add_control('stack_caption_price',[
+                'label'=>'Stack Caption / Price (Top-Bottom)',
+                'type'=>\Elementor\Controls_Manager::SWITCHER,
+                'default'=>'no',
+                'return_value'=>'yes'
             ]);
             $this->end_controls_section();
 
@@ -199,6 +276,28 @@ function register_advanced_product_card($widgets_manager){
             $this->add_control('price_color',['label'=>'Price Color','type'=>\Elementor\Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .pc-price'=>'color:{{VALUE}};']]);
             $this->add_responsive_control('price_margin',['label'=>'Margin','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-price'=>'margin:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
             $this->end_controls_section();
+
+            // BOTTOM CAPTION STYLE
+            $this->start_controls_section('bottom_caption_style',['label'=>'Bottom Caption','tab'=>\Elementor\Controls_Manager::TAB_STYLE]);
+            $this->add_group_control(\Elementor\Group_Control_Typography::get_type(),['name'=>'bottom_caption_typo','selector'=>'{{WRAPPER}} .pc-bottom-caption']);
+            $this->add_control('bottom_caption_color',['label'=>'Text Color','type'=>\Elementor\Controls_Manager::COLOR,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_caption_margin',['label'=>'Margin','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'margin:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
+            $this->add_responsive_control('bottom_caption_padding',['label'=>'Padding','type'=>\Elementor\Controls_Manager::DIMENSIONS,'selectors'=>['{{WRAPPER}} .pc-bottom-caption'=>'padding:{{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}}']]);
+
+            $this->add_control('bottom_before_heading',['label'=>'Before Border','type'=>\Elementor\Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control('bottom_before_enable',['label'=>'Show Before Border','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'no']);
+            $this->add_control('bottom_before_style',['label'=>'Before Border Style','type'=>\Elementor\Controls_Manager::SELECT,'options'=>['solid'=>'Solid','dashed'=>'Dashed','dotted'=>'Dotted','double'=>'Double'],'default'=>'solid','condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-style:{{VALUE}};']]);
+            $this->add_control('bottom_before_color',['label'=>'Before Border Color','type'=>\Elementor\Controls_Manager::COLOR,'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_before_width',['label'=>'Before Border Width (%)','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['%'],'range'=>['%'=>['min'=>10,'max'=>100]],'default'=>['size'=>100], 'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'width:{{SIZE}}%;']]);
+            $this->add_responsive_control('bottom_before_thickness',['label'=>'Before Border Thickness','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['px'],'range'=>['px'=>['min'=>1,'max'=>12]],'default'=>['size'=>1], 'condition'=>['bottom_before_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::before'=>'border-top-width:{{SIZE}}px;']]);
+
+            $this->add_control('bottom_after_heading',['label'=>'After Border','type'=>\Elementor\Controls_Manager::HEADING,'separator'=>'before']);
+            $this->add_control('bottom_after_enable',['label'=>'Show After Border','type'=>\Elementor\Controls_Manager::SWITCHER,'default'=>'no']);
+            $this->add_control('bottom_after_style',['label'=>'After Border Style','type'=>\Elementor\Controls_Manager::SELECT,'options'=>['solid'=>'Solid','dashed'=>'Dashed','dotted'=>'Dotted','double'=>'Double'],'default'=>'solid','condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-style:{{VALUE}};']]);
+            $this->add_control('bottom_after_color',['label'=>'After Border Color','type'=>\Elementor\Controls_Manager::COLOR,'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-color:{{VALUE}};']]);
+            $this->add_responsive_control('bottom_after_width',['label'=>'After Border Width (%)','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['%'],'range'=>['%'=>['min'=>10,'max'=>100]],'default'=>['size'=>100], 'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'width:{{SIZE}}%;']]);
+            $this->add_responsive_control('bottom_after_thickness',['label'=>'After Border Thickness','type'=>\Elementor\Controls_Manager::SLIDER,'size_units'=>['px'],'range'=>['px'=>['min'=>1,'max'=>12]],'default'=>['size'=>1], 'condition'=>['bottom_after_enable'=>'yes'],'selectors'=>['{{WRAPPER}} .pc-bottom-caption::after'=>'border-top-width:{{SIZE}}px;']]);
+            $this->end_controls_section();
         }
 
         protected function render(){
@@ -243,8 +342,37 @@ function register_advanced_product_card($widgets_manager){
                 $s['img_align'],
                 $clip
             );
+            $image_id = !empty($s['image']['id']) ? intval($s['image']['id']) : 0;
+            $image_alt = '';
+            if ($image_id) {
+                $image_alt = trim((string) get_post_meta($image_id, '_wp_attachment_image_alt', true));
+            }
+            if ($image_alt === '') {
+                $image_alt = trim((string) ($s['title'] ?? ''));
+            }
+            $layout_class = (($s['stack_caption_price'] ?? '') === 'yes') ? 'column' : ($s['layout'] ?? 'row');
             $card_link = isset($s['card_link']['url']) ? trim($s['card_link']['url']) : '';
             $open_in_new_tab = (($s['card_link_new_tab'] ?? '') === 'yes');
+
+            $image_size = advanced_product_card_resolve_image_size($s['image_size'] ?? 'large');
+
+            // Responsive srcset/sizes via core when we have a media library attachment ID.
+            $responsive_img_html = '';
+            if ($image_id && wp_attachment_is_image($image_id)) {
+                $responsive_img_html = wp_get_attachment_image(
+                    $image_id,
+                    $image_size,
+                    false,
+                    [
+                        'style'         => $img_style,
+                        'loading'       => 'lazy',
+                        'fetchpriority' => 'high',
+                        'decoding'      => 'async',
+                        'class'         => 'pc-card-img',
+                        'alt'           => $image_alt,
+                    ]
+                );
+            }
             ?>
             <?php if ($card_link !== '') : ?>
                 <a class="pc-card-link" href="<?php echo esc_url($card_link); ?>"<?php echo $open_in_new_tab ? ' target="_blank" rel="noopener noreferrer"' : ''; ?>>
@@ -253,7 +381,16 @@ function register_advanced_product_card($widgets_manager){
 
                 <div class="pc-image-box">
                     <div class="pc-image">
-                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="" style="<?php echo esc_attr($img_style); ?>">
+                        <?php
+                        if ($responsive_img_html !== '') {
+                            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() returns escaped HTML.
+                            echo $responsive_img_html;
+                        } elseif (!empty($s['image']['url'])) {
+                            ?>
+                        <img src="<?php echo esc_url($s['image']['url']); ?>" alt="<?php echo esc_attr($image_alt); ?>" loading="lazy" fetchpriority="high" decoding="async" style="<?php echo esc_attr($img_style); ?>">
+                            <?php
+                        }
+                        ?>
                     </div>
                     <?php if ($s['banner_text']) : ?>
                         <div class="pc-banner <?php echo esc_attr($s['banner_position']); ?>"><?php echo $s['banner_text']; ?></div>
@@ -264,10 +401,13 @@ function register_advanced_product_card($widgets_manager){
 
                 <?php if($s['show_divider']=='yes'): ?><hr class="pc-divider"><?php endif; ?>
 
-                <div class="pc-row <?php echo esc_attr($s['layout']); ?>">
+                <div class="pc-row <?php echo esc_attr($layout_class); ?>">
                     <div class="pc-caption"><?php echo $s['caption']; ?></div>
                     <div class="pc-price"><?php echo $s['price']; ?></div>
                 </div>
+                <?php if (!empty($s['bottom_caption'])) : ?>
+                    <div class="pc-bottom-caption"><?php echo $s['bottom_caption']; ?></div>
+                <?php endif; ?>
             </div>
             <?php if ($card_link !== '') : ?>
                 </a>
@@ -287,6 +427,16 @@ function register_advanced_product_card($widgets_manager){
                 .pc-divider{border-top-width:2px; border-top-style:solid; border-bottom:0;}
                 .pc-row.row{flex-direction:row; justify-content:space-between; display:flex;}
                 .pc-row.column{flex-direction:column; display:flex;}
+                .pc-bottom-caption{position:relative;}
+                .pc-bottom-caption::before,
+                .pc-bottom-caption::after{
+                    content:'';
+                    display:block;
+                    border-top-style:solid;
+                    border-top-width:1px;
+                    border-top-color:transparent;
+                    width:100%;
+                }
             </style>
             <?php
         }
